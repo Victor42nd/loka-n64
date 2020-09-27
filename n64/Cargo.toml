@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 cfg-if = "0.1"
+libm = "0.2"
 n64-math = { path = "../n64-math" }
 n64-types = { path = "../n64-types" }
 zerocopy = "0.3"

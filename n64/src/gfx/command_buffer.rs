@@ -6,6 +6,51 @@ use rdp_command_builder::*;
 
 mod rdp_command_builder;
 
+fn float_to_int_frac(val: f32) -> (u16, u16) {
+    
+    (val as u16, libm::floorf(val * ((1 << 16) as f32)) as u16)
+}
+
+fn edge_slope(p0: Vec3, p1: Vec3) -> (u16, u16) {
+    // TODO: ZERO DIVISION CHECK
+    float_to_int_frac((p1.0 - p0.0) / (p1.1 - p0.1))
+}
+
+fn slope_y_next_subpixel_intersection(p0: Vec3, p1: Vec3) -> (u16, u16){
+
+    let y = libm::floorf(p0.1*4.0) / 4.0;
+
+    let x = p0.0 + (y - p0.1)*(p1.0 - p0.0) / (p1.1 - p0.1);
+    float_to_int_frac(x) 
+}
+
+fn slope_y_prev_scanline_intersection(p0: Vec3, p1: Vec3) -> (u16, u16){
+    let y = libm::floorf(p0.1);
+    // kx + m = y
+    // k = (p1y-p0y)/(p1x-p0x)
+    // m = p0.y
+    // x = (y - p0.y)*(p1x-p0x) / (p1y-p0y)
+    // TODO ZERO DIVISION
+    let x = p0.0 + (y - p0.1)*(p1.0 - p0.0) / (p1.1 - p0.1);
+    float_to_int_frac(x) 
+}
+
+// Sort so taht v0.1 <= v1.1 <= v2.1
+fn sorted_triangle(v0 : Vec3, v1 : Vec3, v2 : Vec3) -> (Vec3, Vec3, Vec3) {
+    if v0.1 > v1.1 {
+        sorted_triangle(v1, v0, v2)
+    }
+    else if v0.1 > v2.1 {
+        sorted_triangle(v1, v2, v0)
+    }
+    else if v1.1 > v2.1 {
+        sorted_triangle(v0, v2, v1)
+    }
+    else {
+        (v0, v1, v2)
+    }
+}
+
 pub struct CommandBufferCache {
     rdp: RdpCommandBuilder,
 }
@@ -172,6 +217,61 @@ impl<'a> CommandBuffer<'a> {
         transform: &[[f32; 4]; 4],
         texture: Option<Texture<'static>>,
     ) -> &mut Self {
+        self.cache
+            .rdp
+            .set_fill_color(Color::new(0b10000_00011_00011_1));
+        for triangle in indices {
+            // TODO: Transform before sort
+            let mut v0 = verts[triangle[0] as usize];
+            let mut v1 = verts[triangle[1] as usize];
+            let mut v2 = verts[triangle[2] as usize];
+
+            v0.0 = libm::fmaxf(libm::fminf( 32.0 * v0.0 + 32.0, 128.0), 0.0);
+            v1.0 = libm::fmaxf(libm::fminf( 32.0 * v1.0 + 32.0, 128.0), 0.0);
+            v2.0 = libm::fmaxf(libm::fminf( 32.0 * v2.0 + 32.0, 128.0), 0.0);
+            v0.1 = libm::fmaxf(libm::fminf( 48.0 * v0.1 + 48.0, 128.0), 0.0);
+            v1.1 = libm::fmaxf(libm::fminf( 48.0 * v1.1 + 48.0, 128.0), 0.0);
+            v2.1 = libm::fmaxf(libm::fminf( 48.0 * v2.1 + 48.0, 128.0), 0.0);
+
+            let (vh, vm, vl) = sorted_triangle(v0, v1, v2);
+            
+            // panic!("{}\n{}\n{}", vh, vm, vl);
+
+            //TODO: Actual intersections (low with subpixel, mid & high with previous scanline)
+            //
+            let (l_int, l_frac) = slope_y_next_subpixel_intersection(vl, vh);
+            let (m_int, m_frac) = slope_y_prev_scanline_intersection(vh, vm);
+            let (h_int, h_frac) = slope_y_prev_scanline_intersection(vm, vl);
+
+            // TODO: Special care if on same y coord
+            let (l_slope_int, l_slope_frac) = edge_slope(vl, vm);
+            let (m_slope_int, m_slope_frac) = edge_slope(vm, vh);
+            let (h_slope_int, h_slope_frac) = edge_slope(vl, vh);
+
+            self.cache.rdp.edge_coefficients(
+                false,
+                false,
+                false,
+                false, // TODO: true if mid is on the left side (x mid < x high)
+                0,
+                0,
+                vl.1,
+                vm.1,
+                vh.1,
+                l_int,
+                l_frac,
+                m_int,
+                m_frac,
+                h_int,
+                h_frac,
+                l_slope_int,
+                l_slope_frac,
+                m_slope_int,
+                m_slope_frac,
+                h_slope_int,
+                h_slope_frac,
+            );
+        }
         self
     }
 

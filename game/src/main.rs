@@ -147,8 +147,8 @@ fn main() {
                 cb.add_mesh_indexed(
                     &[
                         vec3(0.0, 0.5, 0.0),
-                        vec3(-0.5, -0.25, 0.0),
-                        vec3(0.5, -0.25, 0.0),
+                        vec3(-0.5, -0.20, 0.0),
+                        vec3(0.5, -0.30, 0.0),
                     ],
                     &[vec2(0.5, 1.0), vec2(0.0, 0.0), vec2(1.0, 0.0)],
                     &[0xff_00_00_ff, 0x00_ff_00_ff, 0x00_00_ff_ff],
@@ -162,7 +162,7 @@ fn main() {
                     None,
                 );
 
-                if false {
+                if true {
                     font::draw_text(&mut cb, " !\"#$%&", Vec2::new(1.0, 0.0), 0xffffffff);
                     font::draw_text(&mut cb, "'()+,-./", Vec2::new(1.0, 17.0), 0xffffffff);
                     font::draw_text(&mut cb, "0123456789", Vec2::new(1.0, 34.0), 0xffffffff);
