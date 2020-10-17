@@ -318,6 +318,11 @@ impl RdpCommandBuilder {
         inv_slope_high_int: u16,
         inv_slope_high_frac: u16,
     ) -> &mut RdpCommandBuilder {
+
+        // Set triangle mode fill
+        self.set_other_modes(3u64 <<52);
+        self.set_fill_color(Color::new(0b00000_11111_11111_1));
+
         let mut buffer = self.commands.as_mut().unwrap();
         let mut command = COMMAND_EDGE_COEFFICIENTS;
         if shade {
@@ -329,20 +334,32 @@ impl RdpCommandBuilder {
         if z_buffer {
             command |= 0x1;
         }
+
         buffer.push(RdpCommand(
             (command << 56)
+                | if right_major {1u64 << 55} else {0u64}
                 | (to_fixpoint_s_11_2(y_low_minor)) << 32
                 | (to_fixpoint_s_11_2(y_mid_minor)) << 16
                 | (to_fixpoint_s_11_2(y_high_major)) << 0,
         ));
+        // SIC Should be i L, H, M order
         buffer.push(RdpCommand(
-            (x_low_int as u64) << 48 | (x_low_frac as u64) << 32 | (inv_slope_low_int as u64) << 16 | (inv_slope_low_frac as u64) << 0,
+            (x_low_int as u64) << 48
+                | (x_low_frac as u64) << 32
+                | (inv_slope_low_int as u64) << 16
+                | (inv_slope_low_frac as u64) << 0,
         ));
         buffer.push(RdpCommand(
-            (x_mid_int as u64) << 48 | (x_mid_frac as u64) << 32 | (inv_slope_mid_int as u64) << 16 | (inv_slope_mid_frac as u64) << 0,
+            (x_high_int as u64) << 48
+                | (x_high_frac as u64) << 32
+                | (inv_slope_high_int as u64) << 16
+                | (inv_slope_high_frac as u64) << 0,
         ));
         buffer.push(RdpCommand(
-            (x_high_int as u64) << 48 | (x_high_frac as u64) << 32 | (inv_slope_high_int as u64) << 16 | (inv_slope_high_frac as u64) << 0,
+            (x_mid_int as u64) << 48
+                | (x_mid_frac as u64) << 32
+                | (inv_slope_mid_int as u64) << 16
+                | (inv_slope_mid_frac as u64) << 0,
         ));
         self
     }

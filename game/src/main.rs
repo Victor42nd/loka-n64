@@ -162,7 +162,7 @@ fn main() {
                     None,
                 );
 
-                if true {
+                if false {
                     font::draw_text(&mut cb, " !\"#$%&", Vec2::new(1.0, 0.0), 0xffffffff);
                     font::draw_text(&mut cb, "'()+,-./", Vec2::new(1.0, 17.0), 0xffffffff);
                     font::draw_text(&mut cb, "0123456789", Vec2::new(1.0, 34.0), 0xffffffff);

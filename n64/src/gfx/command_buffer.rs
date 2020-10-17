@@ -7,18 +7,21 @@ use rdp_command_builder::*;
 mod rdp_command_builder;
 
 fn float_to_int_frac(val: f32) -> (u16, u16) {
-    
-    (val as u16, libm::floorf(val * ((1 << 16) as f32)) as u16)
+    let integerPart = libm::floorf(val);
+    let fractalPart = val - integerPart;
+    (integerPart as u16, libm::floorf(fractalPart * ((1 << 16) as f32)) as u16)
 }
 
+// Dx/Dy of edge from p0 to p1.
 fn edge_slope(p0: Vec3, p1: Vec3) -> (u16, u16) {
     // TODO: ZERO DIVISION CHECK
     float_to_int_frac((p1.0 - p0.0) / (p1.1 - p0.1))
 }
 
+// X coordinate of the intersection of the edge from p0 to p1 and the sub-scanline at (or higher than) p0.y
 fn slope_y_next_subpixel_intersection(p0: Vec3, p1: Vec3) -> (u16, u16){
 
-    let y = libm::floorf(p0.1*4.0) / 4.0;
+    let y = libm::ceilf(p0.1*4.0) / 4.0;
 
     let x = p0.0 + (y - p0.1)*(p1.0 - p0.0) / (p1.1 - p0.1);
     float_to_int_frac(x) 
@@ -32,7 +35,20 @@ fn slope_y_prev_scanline_intersection(p0: Vec3, p1: Vec3) -> (u16, u16){
     // x = (y - p0.y)*(p1x-p0x) / (p1y-p0y)
     // TODO ZERO DIVISION
     let x = p0.0 + (y - p0.1)*(p1.0 - p0.0) / (p1.1 - p0.1);
+
     float_to_int_frac(x) 
+}
+
+fn int_frac_greater(a_integer : u16, a_fraction : u16, b_integer : u16, b_fraction : u16) -> bool
+{
+    if a_integer == b_integer
+    {
+        a_fraction > b_fraction
+    }
+    else
+    {
+        a_integer > b_integer
+    }
 }
 
 // Sort so taht v0.1 <= v1.1 <= v2.1
@@ -241,18 +257,24 @@ impl<'a> CommandBuffer<'a> {
             //
             let (l_int, l_frac) = slope_y_next_subpixel_intersection(vl, vh);
             let (m_int, m_frac) = slope_y_prev_scanline_intersection(vh, vm);
-            let (h_int, h_frac) = slope_y_prev_scanline_intersection(vm, vl);
+            let (h_int, h_frac) = slope_y_prev_scanline_intersection(vh, vl);
+
+            // panic!("{}\n{}\n{}\n{}\n{}\n{}", l_int, l_frac, m_int, m_frac, h_int, h_frac);
 
             // TODO: Special care if on same y coord
             let (l_slope_int, l_slope_frac) = edge_slope(vl, vm);
             let (m_slope_int, m_slope_frac) = edge_slope(vm, vh);
             let (h_slope_int, h_slope_frac) = edge_slope(vl, vh);
 
+            // panic!("{}\n{}\n{}\n{}\n{}\n{}", l_slope_int, l_slope_frac, m_slope_int, m_slope_frac, h_slope_int, h_slope_frac);
+
+            //panic!("{}.{}>{}.{}\n{}", m_int, m_frac, h_int, h_frac, int_frac_greater(m_int, m_frac, h_int, h_frac));
+
             self.cache.rdp.edge_coefficients(
                 false,
                 false,
                 false,
-                false, // TODO: true if mid is on the left side (x mid < x high)
+                int_frac_greater(m_int, m_frac, h_int, h_frac), // TODO: true if mid is on the left side (is XM > XH)
                 0,
                 0,
                 vl.1,
@@ -271,6 +293,16 @@ impl<'a> CommandBuffer<'a> {
                 h_slope_int,
                 h_slope_frac,
             );
+            
+            /*panic!(
+                "Vl {} {}\nVm {} {}\nVh {} {}\nLY,X {} {} {}\nMY,X {} {} {}\nHY,X {} {} {}",
+            vl.1, vl.0,
+            vm.1, vm.0,
+            vh.1, vh.0,
+            vl.1, l_int, l_frac,
+            vm.1, m_int, m_frac,
+            vh.1, h_int, h_frac
+            );*/
         }
         self
     }
