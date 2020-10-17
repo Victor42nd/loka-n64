@@ -7,9 +7,9 @@ use rdp_command_builder::*;
 mod rdp_command_builder;
 
 fn float_to_int_frac(val: f32) -> (u16, u16) {
-    let integerPart = libm::floorf(val);
-    let fractalPart = val - integerPart;
-    (integerPart as u16, libm::floorf(fractalPart * ((1 << 16) as f32)) as u16)
+    let integer_part = libm::floorf(val);
+    let fractal_part = val - integer_part;
+    (integer_part as u16, libm::floorf(fractal_part * ((1 << 16) as f32)) as u16)
 }
 
 // Dx/Dy of edge from p0 to p1.
@@ -233,25 +233,33 @@ impl<'a> CommandBuffer<'a> {
         transform: &[[f32; 4]; 4],
         texture: Option<Texture<'static>>,
     ) -> &mut Self {
+
         self.cache
             .rdp
             .set_fill_color(Color::new(0b10000_00011_00011_1));
+            
+        // Set triangle mode fill
+         self.cache
+            .rdp
+            .set_other_modes(3u64 <<52);
         for triangle in indices {
             // TODO: Transform before sort
             let mut v0 = verts[triangle[0] as usize];
             let mut v1 = verts[triangle[1] as usize];
             let mut v2 = verts[triangle[2] as usize];
 
-            v0.0 = libm::fmaxf(libm::fminf( 32.0 * v0.0 + 32.0, 128.0), 0.0);
-            v1.0 = libm::fmaxf(libm::fminf( 32.0 * v1.0 + 32.0, 128.0), 0.0);
-            v2.0 = libm::fmaxf(libm::fminf( 32.0 * v2.0 + 32.0, 128.0), 0.0);
-            v0.1 = libm::fmaxf(libm::fminf( 48.0 * v0.1 + 48.0, 128.0), 0.0);
-            v1.1 = libm::fmaxf(libm::fminf( 48.0 * v1.1 + 48.0, 128.0), 0.0);
-            v2.1 = libm::fmaxf(libm::fminf( 48.0 * v2.1 + 48.0, 128.0), 0.0);
+            let scale = 15.0;
+
+            v0.0 = 4.0 * libm::fmaxf(libm::fminf( scale * (1.0 + v0.0), 128.0), 0.0);
+            v1.0 = 4.0 * libm::fmaxf(libm::fminf( scale * (1.0 + v1.0), 128.0), 0.0);
+            v2.0 = 4.0 * libm::fmaxf(libm::fminf( scale * (1.0 + v2.0), 128.0), 0.0);
+            v0.1 = 4.0 * libm::fmaxf(libm::fminf( scale * (1.0 + v0.1), 128.0), 0.0);
+            v1.1 = 4.0 * libm::fmaxf(libm::fminf( scale * (1.0 + v1.1), 128.0), 0.0);
+            v2.1 = 4.0 * libm::fmaxf(libm::fminf( scale * (1.0 + v2.1), 128.0), 0.0);
 
             let (vh, vm, vl) = sorted_triangle(v0, v1, v2);
             
-            // panic!("{}\n{}\n{}", vh, vm, vl);
+            // panic!("V012\n{}\n{}\n{}\nVHML\n{}\n{}\n{}", v0, v1, v2, vh, vm, vl);
 
             //TODO: Actual intersections (low with subpixel, mid & high with previous scanline)
             //
@@ -274,7 +282,7 @@ impl<'a> CommandBuffer<'a> {
                 false,
                 false,
                 false,
-                int_frac_greater(m_int, m_frac, h_int, h_frac), // TODO: true if mid is on the left side (is XM > XH)
+                int_frac_greater(m_int, m_frac, h_int, h_frac),
                 0,
                 0,
                 vl.1,

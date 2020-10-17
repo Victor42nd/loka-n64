@@ -318,10 +318,8 @@ impl RdpCommandBuilder {
         inv_slope_high_int: u16,
         inv_slope_high_frac: u16,
     ) -> &mut RdpCommandBuilder {
-
-        // Set triangle mode fill
-        self.set_other_modes(3u64 <<52);
-        self.set_fill_color(Color::new(0b00000_11111_11111_1));
+        //self.set_other_modes(3u64 <<52);
+        //self.set_fill_color(Color::new(0b00000_11111_11111_1));
 
         let mut buffer = self.commands.as_mut().unwrap();
         let mut command = COMMAND_EDGE_COEFFICIENTS;
@@ -361,6 +359,7 @@ impl RdpCommandBuilder {
                 | (inv_slope_mid_int as u64) << 16
                 | (inv_slope_mid_frac as u64) << 0,
         ));
+
         self
     }
 
@@ -391,6 +390,7 @@ impl RdpCommandBuilder {
                 | (to_fixpoint_10_2_as_integer(l) << 12)
                 | (to_fixpoint_10_2_as_integer(t)),
         ));
+        
         self
     }
 
